@@ -11,7 +11,8 @@ String getPedoDataJSON(PedoData pedoData)
   json += "\"gyro_z\": " + String(pedoData.sensor_data.gz) + ",";
   json += "\"motion_state\": \"" + String(pedoData.motion_state) + "\",";
   json += "\"calorie_burn\": " + String(pedoData.calorie_burn) + ",";
-  json += "\"step_count\": " + String(pedoData.step_count);
+  json += "\"step_count\": " + String(pedoData.step_count) + ",";
+  json += "\"timestamp\": " + String(pedoData.timestamp);
   json += "}";
   return json;
 }

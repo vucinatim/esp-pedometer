@@ -23,31 +23,28 @@
 <body class="relative h-screen w-screen flex flex-col items-center">
     <div class="w-full shadow-lg flex justify-center items-center py-4">
         <div class="grid grid-cols-3 gap-2 w-[1380px] px-6">
-            <div class="place-self-start flex items-center justify-center space-x-4">
-                <i class="fa fa-step-backward text-2xl cursor-pointer"></i>
-                <i class="fa fa-pause text-2xl cursor-pointer"></i>
-                <i class="fa fa-play text-2xl cursor-pointer"></i>
-                <i class="fa fa-step-forward text-2xl cursor-pointer"></i>
-                
-                <div class="flex items-center space-x-2 ml-10">
-                    <span class="font-medium">00:00</span>
-                    <input type="range" min="0" max="100" class="slider w-40" id="timeRange">
-                    <span class="font-medium">04:00</span>
-                </div>
+            <div class="place-self-start flex items-center justify-center space-x-4 text-gray-600">
+                <i id="play-pause" class="fa fa-play text-2xl cursor-pointer"></i>
+                <i id="stop" class="fa fa-stop text-2xl cursor-pointer hidden"></i>
+                <span id="sessionTime" class="font-medium">00:00:00.000</span>
             </div>
             <h1 class="place-self-center flex justify-center items-center text-3xl font-bold">
                 ESP8266 Pedometer
             </h1>
-            <button class="place-self-end h-full aspect-square flex justify-center items-center rounded-md bg-gray-100 hover:bg-gray-150">
-                <i class="fa fa-th-large "></i>
-            </button>
+            <div class="flex justify-end items-center gap-4">
+                <h2 id="workoutName" class="text-sm text-gray-400"></h2>
+                <button id="workoutsButton"
+                    class="place-self-end h-full aspect-square flex justify-center items-center rounded-md bg-gray-100 hover:bg-gray-150">
+                    <i class="fa fa-th-large "></i>
+                </button>
+            </div>
         </div>
     </div>
     <div class="grow p-6 flex flex-col gap-6 w-full max-w-[1380px]">
         <div class="grid grid-cols-12 gap-2">
             <div class="col-span-2">
                 <button id="settingsButton"
-                    class="whitespace-nowrap bg-blue-300 hover:bg-blue-500 text-white font-bold py-2 px-4 rounded-full">
+                    class="disabled:bg-gray-300 whitespace-nowrap bg-blue-300 hover:bg-blue-500 text-white font-bold py-2 px-4 rounded-full">
                     Open Settings
                 </button>
             </div>
@@ -58,14 +55,14 @@
             </div>
         </div>
 
-        <div class="h-32 flex flex-col gap-2">
+        <div class="flex flex-col gap-2">
             <div class="grid grid-cols-12 gap-2 items-center">
                 <p class="col-span-2 font-bold">Acceleration</p>
-                <div id="recentAccelerationData" class="col-span-10 grid grid-cols-10 gap-2"></div>
+                <div id="recentAccelerationData" class="h-16 col-span-10 grid grid-cols-10 gap-2"></div>
             </div>
             <div class="grid grid-cols-12 gap-2 items-center">
                 <p class="col-span-2 font-bold">Gyro</p>
-                <div id="recentGyroData" class="col-span-10 grid grid-cols-10 gap-2"></div>
+                <div id="recentGyroData" class="h-16 col-span-10 grid grid-cols-10 gap-2"></div>
             </div>
         </div>
 
@@ -146,9 +143,9 @@
 
     <!-- Modal with form -->
     <div id="settingsModal"
-        class="fixed top-0 left-0 flex w-screen h-screen bg-black bg-opacity-50 backdrop-blur-sm hidden justify-center items-center z-50">
+        class="fixed modalBackdrop top-0 left-0 flex w-screen h-screen bg-black bg-opacity-50 backdrop-blur-sm hidden justify-center items-center z-50">
         <div class="bg-white p-8 rounded-lg shadow-lg relative min-w-[50%]">
-            <button id="closeModal" class="absolute top-0 right-0 p-4 hover:scale-125 transition-all text-lg">
+            <button id="closeSettingsModal" class="absolute top-0 right-0 p-4 hover:scale-125 transition-all text-lg">
                 &times;
             </button>
             <h2 class="text-2xl mb-4">Settings</h2>
@@ -195,11 +192,29 @@
         </div>
     </div>
 
+    <!-- Modal with workouts -->
+    <div id="workoutsModal"
+        class="fixed modalBackdrop top-0 left-0 flex w-screen h-screen bg-black bg-opacity-50 backdrop-blur-sm hidden justify-center items-center z-50">
+        <div class="bg-white p-8 rounded-lg shadow-lg relative min-w-[50%]">
+            <button id="closeWorkoutsModal" class="absolute top-0 right-0 p-4 hover:scale-125 transition-all text-lg">
+                &times;
+            </button>
+            <h2 class="text-2xl mb-4">Workouts</h2>
+            <ul id="workoutsList">
+                <!-- List of workouts will be populated here -->
+            </ul>
+        </div>
+    </div>
+
     <script>
         const refreshInterval = 200;
         const maxDataPoints = 10;
+        var sessionTime = 0;
         let recentData = [];
         let goalCalories = 500;
+        var isWorkoutActive = false;
+        var isWorkoutPaused = false;
+        let currentTime = Date.now(); // Current time in seconds since epoch
 
         let riveInputs = null;
         const runnerBoy = new rive.Rive({
@@ -293,6 +308,16 @@
             }]
         };
 
+        function pauseChart(chart) {
+            chart.options.plugins.streaming.pause = true;
+            chart.update({ duration: 0 });
+        }
+
+        function startChart(chart) {
+            chart.options.plugins.streaming.pause = false;
+            chart.update({ duration: 0 });
+        }
+
         let accelerationChart = new Chart(document.getElementById('accelerationChart'), {
             type: 'line',
             data: accelerationData,
@@ -316,16 +341,17 @@
                                 if (recentData.length < 1) {
                                     return
                                 }
+                                let time = new Date(recentData[recentData.length - 1].timestamp + currentTime);
                                 chart.data.datasets[0].data.push({
-                                    x: recentData[recentData.length - 1].time,
+                                    x: time,
                                     y: recentData[recentData.length - 1].acceleration_x
                                 });
                                 chart.data.datasets[1].data.push({
-                                    x: recentData[recentData.length - 1].time,
+                                    x: time,
                                     y: recentData[recentData.length - 1].acceleration_y
                                 });
                                 chart.data.datasets[2].data.push({
-                                    x: recentData[recentData.length - 1].time,
+                                    x: time,
                                     y: recentData[recentData.length - 1].acceleration_z
                                 });
 
@@ -362,16 +388,17 @@
                                 if (recentData.length < 1) {
                                     return
                                 }
+                                let time = new Date(recentData[recentData.length - 1].timestamp + currentTime);
                                 chart.data.datasets[0].data.push({
-                                    x: recentData[recentData.length - 1].time,
+                                    x: time,
                                     y: recentData[recentData.length - 1].gyro_x
                                 });
                                 chart.data.datasets[1].data.push({
-                                    x: recentData[recentData.length - 1].time,
+                                    x: time,
                                     y: recentData[recentData.length - 1].gyro_y
                                 });
                                 chart.data.datasets[2].data.push({
-                                    x: recentData[recentData.length - 1].time,
+                                    x: time,
                                     y: recentData[recentData.length - 1].gyro_z
                                 });
                             }
@@ -412,8 +439,9 @@
                                 if (recentData.length < 1) {
                                     return
                                 }
+                                let time = new Date(recentData[recentData.length - 1].timestamp + currentTime);
                                 chart.data.datasets[0].data.push({
-                                    x: recentData[recentData.length - 1].time,
+                                    x: time,
                                     y: recentData[recentData.length - 1].calorie_burn
                                 });
                             }
@@ -427,11 +455,14 @@
             }
         });
 
+        pauseChart(accelerationChart);
+        pauseChart(gyroChart);
+        pauseChart(caloriesChart);
+
         function fetchAndUpdate() {
             fetch('/api/data').then(response => response.json()).then(data => {
                 // Add data to recentData array and keep it to 10 elements
-                const newData = { ...data, time: Date.now() };
-                recentData.push(newData);
+                recentData.push(data);
                 if (recentData.length > maxDataPoints) {
                     recentData.shift();
                 }
@@ -474,32 +505,64 @@
             });
         }
 
-        setInterval(fetchAndUpdate, refreshInterval);  // Fetch and update every [refreshInterval] ms
+        function msToTime(s) {
+
+            // Pad to 2 or 3 digits, default is 2
+            function pad(n, z) {
+                z = z || 2;
+                return ('00' + n).slice(-z);
+            }
+
+            var ms = s % 1000;
+            s = (s - ms) / 1000;
+            var secs = s % 60;
+            s = (s - secs) / 60;
+            var mins = s % 60;
+            var hrs = (s - mins) / 60;
+
+            return pad(hrs) + ':' + pad(mins) + ':' + pad(secs) + '.' + pad(ms, 3);
+        }
+
+        // If the workout is active, fetch data every [refreshInterval] milliseconds
+        setInterval(() => {
+            if (isWorkoutActive && !isWorkoutPaused) {
+                fetchAndUpdate();
+            }
+        }, refreshInterval);
+
+        setInterval(() => {
+            if (isWorkoutActive && !isWorkoutPaused) {
+                sessionTime += refreshInterval;
+                document.getElementById('sessionTime').textContent = `${msToTime(sessionTime)}`;
+            }
+        }, 1);
+
+        function setUserData(data) {
+            goalCalories = data.calorie_goal;
+            // Set the user data boxes
+            document.getElementById('weight').textContent = `${data.weight} kg`;
+            document.getElementById('height').textContent = `${data.height} cm`;
+            document.getElementById('age').textContent = `${data.age} years`;
+            document.getElementById('gender').textContent = data.gender;
+            document.getElementById('calorieGoal').textContent = `${goalCalories} kcal`;
+
+            // Set the user data in the settings modal
+            document.getElementById('inputWeight').value = data.weight;
+            document.getElementById('inputHeight').value = data.height;
+            document.getElementById('inputAge').value = data.age;
+            document.getElementById('inputGender').value = data.gender;
+            document.getElementById('inputGoal').value = goalCalories;
+
+            // Update the value of the goalLine plugin
+            caloriesChart.options.plugins.goalLine.value = goalCalories;
+            // Adjust the y scale max value
+            caloriesChart.options.scales.y.suggestedMax = goalCalories + 20;
+            caloriesChart.update();
+        }
 
         function fetchUserData() {
             fetch('/api/user').then(response => response.json()).then(data => {
-
-                console.log(data);
-                goalCalories = data.calorie_goal;
-                // Set the user data boxes
-                document.getElementById('weight').textContent = `${data.weight} kg`;
-                document.getElementById('height').textContent = `${data.height} cm`;
-                document.getElementById('age').textContent = `${data.age} years`;
-                document.getElementById('gender').textContent = data.gender;
-                document.getElementById('goal').textContent = `${goalCalories} kcal`;
-
-                // Set the user data in the settings modal
-                document.getElementById('inputWeight').value = data.weight;
-                document.getElementById('inputHeight').value = data.height;
-                document.getElementById('inputAge').value = data.age;
-                document.getElementById('inputGender').value = data.gender;
-                document.getElementById('inputGoal').value = data.calorie_goal;
-
-                // Update the value of the goalLine plugin
-                caloriesChart.options.plugins.goalLine.value = goalCalories;
-                // Adjust the y scale max value
-                caloriesChart.options.scales.y.suggestedMax = goalCalories + 20;
-                caloriesChart.update();
+                setUserData(data);
             });
         }
 
@@ -523,14 +586,6 @@
         }
 
         fetchUserData();
-
-        document.getElementById('settingsButton').addEventListener('click', function () {
-            document.getElementById('settingsModal').classList.remove('hidden');
-        });
-
-        document.getElementById('closeModal').addEventListener('click', function () {
-            document.getElementById('settingsModal').classList.add('hidden');
-        });
 
         document.getElementById('settingsForm').addEventListener('submit', function (event) {
             event.preventDefault();
@@ -558,6 +613,236 @@
             // Close the modal
             document.getElementById('settingsModal').classList.add('hidden');
         });
+
+
+        var playPauseButton = document.getElementById('play-pause');
+        var stopButton = document.getElementById('stop');
+        var timeRange = document.getElementById('timeRange');
+        var sessionStartTime = document.getElementById('sessionStartTime');
+        var sessionStopTime = document.getElementById('sessionStopTime');
+        var workoutName = document.getElementById('workoutName');
+
+        // The workout is not active at the beginning
+        async function sendRequest(url) {
+            const response = await fetch(url, { method: 'POST' });
+            return response.json();
+        }
+
+        function startWorkout() {
+            sendRequest('/api/start_workout')
+                .then(response => {
+                    console.log(response);
+                    isWorkoutActive = true;
+                    updateButtons();
+                    workoutName.textContent = response.name;
+            });
+            // Reset the charts
+            resetCharts();
+        }
+
+        function stopWorkout() {
+            sendRequest('/api/stop_workout').then((response) => {
+                console.log(response);
+                isWorkoutActive = false;
+                isWorkoutPaused = false;
+                updateButtons();
+            });
+        }
+
+        function pauseWorkout() {
+            sendRequest('/api/pause_workout').then((response) => {
+                console.log(response);
+                isWorkoutPaused = true;
+                updateButtons();
+            });
+        }
+
+        function resumeWorkout() {
+            sendRequest('/api/resume_workout').then((response) => {
+                console.log(response);
+                isWorkoutPaused = false;
+                updateButtons();
+            });
+        }
+
+        function resetCharts() {
+            accelerationChart.data.datasets.forEach((dataset) => {
+                dataset.data = [];
+            });
+            gyroChart.data.datasets.forEach((dataset) => {
+                dataset.data = [];
+            });
+            caloriesChart.data.datasets.forEach((dataset) => {
+                dataset.data = [];
+            });
+
+            accelerationChart.update();
+            gyroChart.update();
+            caloriesChart.update();
+        }
+
+        const settingsModal = document.getElementById("settingsModal");
+        const workoutsModal = document.getElementById("workoutsModal");
+
+        const workoutsButton = document.getElementById("workoutsButton");
+        const settingsButton = document.getElementById("settingsButton");
+
+        const closeSettingsModal = document.getElementById("closeSettingsModal");
+        const closeWorkoutsModal = document.getElementById("closeWorkoutsModal");
+
+        function updateButtons() {
+            if (isWorkoutActive) {
+                settingsButton.disabled = true;
+                if (isWorkoutPaused) {
+                    playPauseButton.classList.remove("fa-pause");
+                    playPauseButton.classList.add("fa-play");
+                    stopButton.style.display = "inline";
+                } else {
+                    playPauseButton.classList.remove("fa-play");
+                    playPauseButton.classList.add("fa-pause");
+                    stopButton.style.display = "inline";
+                }
+            } else {
+                sessionTime = 0;
+                settingsButton.disabled = false;
+                playPauseButton.classList.remove("fa-pause");
+                playPauseButton.classList.add("fa-play");
+                stopButton.style.display = "none";
+            }
+        }
+
+        playPauseButton.addEventListener("click", function () {
+            if (isWorkoutActive) {
+                if (isWorkoutPaused) {
+                    resumeWorkout();
+
+                    // Restart the charts
+                    startChart(accelerationChart);
+                    startChart(gyroChart);
+                    startChart(caloriesChart);
+                } else {
+                    pauseWorkout();
+
+                    // Stop the charts
+                    pauseChart(accelerationChart);
+                    pauseChart(gyroChart);
+                    pauseChart(caloriesChart);
+                }
+            } else {
+                startWorkout();
+
+                // Restart the charts
+                startChart(accelerationChart);
+                startChart(gyroChart);
+                startChart(caloriesChart);
+            }
+        });
+
+        stopButton.addEventListener("click", function () {
+            stopWorkout();
+
+            // Stop the charts
+            pauseChart(accelerationChart);
+            pauseChart(gyroChart);
+            pauseChart(caloriesChart);
+        });
+
+        closeSettingsModal.addEventListener("click", function () {
+            settingsModal.classList.add("hidden"); // Hide the modal
+        });
+
+        closeWorkoutsModal.addEventListener("click", function () {
+            workoutsModal.classList.add("hidden"); // Hide the modal
+        });
+
+        settingsButton.addEventListener("click", function () {
+            settingsModal.classList.remove("hidden"); // Show the modal
+        });
+
+        workoutsButton.addEventListener("click", function () {
+            workoutsModal.classList.remove("hidden"); // Show the modal
+        });
+
+        window.addEventListener("click", function (event) {
+            if (event.target.classList.contains("modalBackdrop")) {
+                workoutsModal.classList.add("hidden"); // Hide the modal
+                settingsModal.classList.add("hidden"); // Hide the modal
+            }
+        });
+
+        // Get the modal
+        const workoutsList = document.getElementById("workoutsList");
+
+        workoutsButton.addEventListener("click", function () {
+            fetch('/api/workouts')
+                .then(response => response.json())
+                .then(data => {
+                    workoutsList.innerHTML = ''; // Clear previous workout list
+                    data.forEach(workout => {
+                        const li = document.createElement("li");
+                        li.classList.add("p-4");
+                        li.classList.add("hover:bg-gray-100")
+                        li.classList.add("rounded-md");
+                        li.classList.add("cursor-pointer");
+                        li.textContent = workout;
+                        li.addEventListener("click", function () {
+                            fetch('/api/workout?file=' + workout)
+                                .then(response => response.json())
+                                .then(data => {
+                                    workoutsModal.classList.add("hidden"); // Hide the modal
+                                    workoutName.textContent = workout;
+                                    let userData = data.user_data;
+                                    let workoutData = data.workout_data;
+
+                                    // Update the user data
+                                    setUserData(userData);
+
+                                    // Update the acceleration data
+                                    accelerationChart.data.datasets[0].data = workoutData.forEach((data) => {
+                                        data.acceleration_x;
+                                    })
+                                    accelerationChart.data.datasets[1].data = workoutData.forEach((data) => {
+                                        data.acceleration_y;
+                                    })
+                                    accelerationChart.data.datasets[2].data = workoutData.forEach((data) => {
+                                        data.acceleration_z;
+                                    })
+                                    accelerationChart.update();
+
+                                    // Update the gyro data
+                                    gyroChart.data.datasets[0].data = workoutData.forEach((data) => {
+                                        data.gyro_x;
+                                    })
+                                    gyroChart.data.datasets[1].data = workoutData.forEach((data) => {
+                                        data.gyro_y;
+                                    })
+                                    gyroChart.data.datasets[2].data = workoutData.forEach((data) => {
+                                        data.gyro_z;
+                                    })
+                                    gyroChart.update();
+
+                                    // Update the calories data
+                                    caloriesChart.data.datasets[0].data = workoutData.forEach((data) => {
+                                        data.calorie_burn;
+                                    })
+                                    caloriesChart.update();
+                                    document.getElementById('calorieBurn').textContent = workoutData[workoutData.length - 2].calorie_burn;
+
+                                    // Update step count
+                                    let stepCount = workoutData[workoutData.length - 2].step_count;
+                                    document.getElementById('stepCount').textContent = `Step Count: ${stepCount}`;
+
+                                    // Update the workout time
+                                    sessionTime = workoutData[workoutData.length - 2].timestamp - workoutData[0].timestamp;
+                                    document.getElementById('sessionTime').textContent = `${msToTime(sessionTime)}`;
+                                    
+                                });
+                        });
+                        workoutsList.appendChild(li);
+                    });
+                });
+        });
+
     </script>
 </body>
 

@@ -39,6 +39,7 @@ struct PedoData {
   String motion_state;
   int step_count;
   float calorie_burn;
+  unsigned long timestamp;
 };
 
 #define NUM_READINGS 10

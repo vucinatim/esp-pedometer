@@ -69,8 +69,8 @@ void setupWebServer()
 
   server.on("/api/start_workout", HTTP_POST, []()
             {
-  startWorkout();
-  server.send(200, "application/json", "{\"message\":\"Workout session started\"}"); });
+  String workoutName = startWorkout();
+  server.send(200, "application/json", "{\"name\":\"" + workoutName + "\",\"message\":\"Workout session started\"}"); });
 
   server.on("/api/stop_workout", HTTP_POST, []()
             {
@@ -93,7 +93,7 @@ void setupWebServer()
   String fileList = "[";
   while (dir.next()) {
     String fileName = dir.fileName();
-    if (fileName.startsWith("/workout_")) {
+    if (fileName.startsWith("workout")) {
       if (fileList.length() > 1) {
         fileList += ",";
       }
@@ -119,6 +119,21 @@ void setupWebServer()
   File file = LittleFS.open(fileName, "r");
   server.streamFile(file, "application/json");
   file.close(); });
+
+  server.on("/api/files", HTTP_GET, []() {
+    Dir dir = LittleFS.openDir("/");
+    String fileList = "[";
+    while (dir.next()) {
+      String fileName = dir.fileName();
+      if (fileList.length() > 1) {
+        fileList += ",";
+      }
+      fileList += "\"" + fileName + "\"";
+    }
+    fileList += "]";
+    server.send(200, "application/json", fileList);
+  });
+
 
   server.begin();
   Serial.println("HTTP server started");

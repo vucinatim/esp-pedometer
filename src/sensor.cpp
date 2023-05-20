@@ -35,12 +35,16 @@ PedoData getPedoData() {
   // Compute the calorie burn
   calorieBurn = calculateCaloriesBurned();
 
+  // Get the current timestamp
+  unsigned long timestamp = millis();
+
   // Create a PedoData object
   PedoData pedoData;
   pedoData.sensor_data = lastReading;
   pedoData.motion_state = motionState;
   pedoData.step_count = stepCount;
   pedoData.calorie_burn = calorieBurn;
+  pedoData.timestamp = timestamp;
 
   return pedoData;
 }
