@@ -58,13 +58,30 @@ The data from the `/api/data` endpoint is returned in the following format:
 
 jsonCopy code
 
-`{     "acceleration_x": <value>,     "acceleration_y": <value>,     "acceleration_z": <value>,     "gyro_x": <value>,     "gyro_y": <value>,     "gyro_z": <value>,     "motion_state": "<value>",     "calorie_burn": <value>,     "step_count": <value>,     "timestamp": <value> }`
+`{
+    "acceleration_x": <value>,
+    "acceleration_y": <value>,
+    "acceleration_z": <value>,
+    "gyro_x": <value>,
+    "gyro_y": <value>,
+    "gyro_z": <value>,
+    "motion_state": "<value>",
+    "calorie_burn": <value>,
+    "step_count": <value>,
+    "timestamp": <value>
+}
 
 The user data from the `/api/user` endpoint is returned in the following format:
 
 jsonCopy code
 
-`{     "weight": <value>,     "height": <value>,     "age": <value>,     "gender": "<value>",     "calorie_goal": <value> }`
+`{
+    "weight": <value>,
+    "height": <value>,
+    "age": <value>,
+    "gender": "<value>",
+    "calorie_goal": <value>
+}`
 
 Troubleshooting
 ---------------
