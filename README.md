@@ -2,6 +2,7 @@ ESP8266 Pedometer
 =================
 
 This repository contains the code for an ESP8266 based pedometer which makes use of the MPU6050 sensor to measure the motion and provides HTTP endpoints for the data. It also includes various utility functions to manipulate the data gathered from the sensor.
+![](https://github.com/vucinatim/esp-pedometer/blob/dbb656834d4860345a89d76d051d6e4f2377ffeb/demo.gif)
 
 Prerequisites
 -------------
