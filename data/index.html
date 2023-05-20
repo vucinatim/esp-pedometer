@@ -1,0 +1,564 @@
+<!DOCTYPE html>
+<html>
+
+<head>
+    <title>Sensor Data</title>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <!-- Tailwind -->
+    <script src="https://cdn.tailwindcss.com"></script>
+    <!-- ChartJS -->
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/luxon@3.3.0/build/global/luxon.min.js"></script>
+    <script
+        src="https://cdn.jsdelivr.net/npm/chartjs-adapter-luxon@1.3.1/dist/chartjs-adapter-luxon.umd.min.js"></script>
+    <script
+        src="https://cdn.jsdelivr.net/npm/chartjs-plugin-streaming@2.0.0/dist/chartjs-plugin-streaming.min.js"></script>
+    <!-- Rive -->
+    <script src="https://unpkg.com/@rive-app/canvas@1.0.102"></script>
+    <!-- Icons -->
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/4.7.0/css/font-awesome.min.css">
+</head>
+
+<body class="relative h-screen w-screen flex flex-col items-center">
+    <div class="w-full shadow-lg flex justify-center items-center py-4">
+        <div class="grid grid-cols-3 gap-2 w-[1380px] px-6">
+            <div class="place-self-start flex items-center justify-center space-x-4">
+                <i class="fa fa-step-backward text-2xl cursor-pointer"></i>
+                <i class="fa fa-pause text-2xl cursor-pointer"></i>
+                <i class="fa fa-play text-2xl cursor-pointer"></i>
+                <i class="fa fa-step-forward text-2xl cursor-pointer"></i>
+                
+                <div class="flex items-center space-x-2 ml-10">
+                    <span class="font-medium">00:00</span>
+                    <input type="range" min="0" max="100" class="slider w-40" id="timeRange">
+                    <span class="font-medium">04:00</span>
+                </div>
+            </div>
+            <h1 class="place-self-center flex justify-center items-center text-3xl font-bold">
+                ESP8266 Pedometer
+            </h1>
+            <button class="place-self-end h-full aspect-square flex justify-center items-center rounded-md bg-gray-100 hover:bg-gray-150">
+                <i class="fa fa-th-large "></i>
+            </button>
+        </div>
+    </div>
+    <div class="grow p-6 flex flex-col gap-6 w-full max-w-[1380px]">
+        <div class="grid grid-cols-12 gap-2">
+            <div class="col-span-2">
+                <button id="settingsButton"
+                    class="whitespace-nowrap bg-blue-300 hover:bg-blue-500 text-white font-bold py-2 px-4 rounded-full">
+                    Open Settings
+                </button>
+            </div>
+            <div class="col-span-10 relative flex justify-between items-center">
+                <h2 class="text-gray-400 font-bold text-sm">Latest</h2>
+                <h3>Last 10 Data Points</h3>
+                <h2 class="text-gray-400 font-bold text-sm">Oldest</h2>
+            </div>
+        </div>
+
+        <div class="h-32 flex flex-col gap-2">
+            <div class="grid grid-cols-12 gap-2 items-center">
+                <p class="col-span-2 font-bold">Acceleration</p>
+                <div id="recentAccelerationData" class="col-span-10 grid grid-cols-10 gap-2"></div>
+            </div>
+            <div class="grid grid-cols-12 gap-2 items-center">
+                <p class="col-span-2 font-bold">Gyro</p>
+                <div id="recentGyroData" class="col-span-10 grid grid-cols-10 gap-2"></div>
+            </div>
+        </div>
+
+        <div class="grow grid grid-cols-2 gap-4 justify-center justify-items-stretch">
+            <div class="grid grid-rows-2">
+                <div class="flex flex-col justify-items-stretch">
+                    <div class="flex justify-between items-stretch h-12 gap-2 w-full">
+                        <div
+                            class="flex grow flex-col justify-center items-center p-2 bg-gray-100 border border-gray-300 rounded-lg shadow-md">
+                            <h3 class="text-xs">Weight</h3>
+                            <h2 id="weight" class="font-bold text-gray-400 text-sm">
+                                70 Kg
+                            </h2>
+                        </div>
+                        <div
+                            class="flex grow flex-col justify-center items-center p-2 bg-gray-100 border border-gray-300 rounded-lg shadow-md">
+                            <h3 class="text-xs">Age</h3>
+                            <h2 id="age" class="font-bold text-gray-400 text-sm">
+                                30 years
+                            </h2>
+                        </div>
+                        <div
+                            class="flex grow flex-col justify-center items-center p-2 bg-gray-100 border border-gray-300 rounded-lg shadow-md">
+                            <h3 class="text-xs">Gender</h3>
+                            <h2 id="gender" class="font-bold text-gray-400 text-sm">
+                                Male
+                            </h2>
+                        </div>
+                        <div
+                            class="flex grow flex-col justify-center items-center p-2 bg-gray-100 border border-gray-300 rounded-lg shadow-md">
+                            <h3 class="text-xs">Height</h3>
+                            <h2 id="height" class="font-bold text-gray-400 text-sm">
+                                170 cm
+                            </h2>
+                        </div>
+                        <div
+                            class="flex grow flex-col justify-center items-center p-2 bg-gray-100 border border-gray-300 rounded-lg shadow-md">
+                            <h3 class="text-xs">Goal</h3>
+                            <h2 id="calorieGoal" class="font-bold text-gray-400 text-sm">
+                                500 kcal
+                            </h2>
+                        </div>
+                    </div>
+                    <div class="grow grid grid-cols-2 justify-items-center items-center gap-2">
+                        <canvas id="rive" class="h-full"></canvas>
+                        <div class="flex flex-col gap-4 items-center justify-center">
+                            <h1 id="movementState" class="text-2xl font-bold"></h1>
+                            <h2 id="stepCount" class="font-bold text-gray-400"></h2>
+                            <h2 id="calorieBurn" class="font-bold text-gray-400"></h2>
+                        </div>
+                    </div>
+                </div>
+                <div class="relative w-full h-full">
+                    <!-- <h3>Calorie Burn</h3> -->
+                    <canvas id="caloriesChart"></canvas>
+                </div>
+            </div>
+            <div class="grid grid-rows-2">
+                <div class="relative w-full h-full">
+                    <!-- <h3>Acceleration</h3> -->
+                    <canvas id="accelerationChart"></canvas>
+                </div>
+                <div class="relative w-full h-full">
+                    <!-- <h3>Gyro</h3> -->
+                    <canvas id="gyroChart"></canvas>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <template id="dataTemplate">
+        <div class="dataEntry p-2 rounded-xl flex flex-col items-center justify-center bg-gray-100 text-xs">
+            <p class="dataX"></p>
+            <p class="dataY"></p>
+            <p class="dataZ"></p>
+        </div>
+    </template>
+
+    <!-- Modal with form -->
+    <div id="settingsModal"
+        class="fixed top-0 left-0 flex w-screen h-screen bg-black bg-opacity-50 backdrop-blur-sm hidden justify-center items-center z-50">
+        <div class="bg-white p-8 rounded-lg shadow-lg relative min-w-[50%]">
+            <button id="closeModal" class="absolute top-0 right-0 p-4 hover:scale-125 transition-all text-lg">
+                &times;
+            </button>
+            <h2 class="text-2xl mb-4">Settings</h2>
+            <form id="settingsForm" class="space-y-4">
+                <div>
+                    <label for="inputWeight" class="block text-sm font-medium text-gray-700">Weight (in kg)</label>
+                    <input id="inputWeight" name="weight" type="number" value="70"
+                        class="mt-1 block w-full py-2 px-3 border border-gray-300 bg-white rounded-md shadow-sm focus:outline-none focus:ring-indigo-500 focus:border-indigo-500 sm:text-sm" />
+                </div>
+
+                <div>
+                    <label for="inputAge" class="block text-sm font-medium text-gray-700">Age (in years)</label>
+                    <input id="inputAge" name="age" type="number" value="30"
+                        class="mt-1 block w-full py-2 px-3 border border-gray-300 bg-white rounded-md shadow-sm focus:outline-none focus:ring-indigo-500 focus:border-indigo-500 sm:text-sm" />
+                </div>
+
+                <div>
+                    <label for="inputGender" class="block text-sm font-medium text-gray-700">Gender</label>
+                    <select id="inputGender" name="gender"
+                        class="mt-1 block w-full py-2 px-3 border border-gray-300 bg-white rounded-md shadow-sm focus:outline-none focus:ring-indigo-500 focus:border-indigo-500 sm:text-sm">
+                        <option value="Male" selected>Male</option>
+                        <option value="Female">Female</option>
+                    </select>
+                </div>
+
+                <div>
+                    <label for="inputHeight" class="block text-sm font-medium text-gray-700">Height (in cm)</label>
+                    <input id="inputHeight" name="height" type="number" value="175"
+                        class="mt-1 block w-full py-2 px-3 border border-gray-300 bg-white rounded-md shadow-sm focus:outline-none focus:ring-indigo-500 focus:border-indigo-500 sm:text-sm" />
+                </div>
+
+                <div>
+                    <label for="inputGoal" class="block text-sm font-medium text-gray-700">Calorie Goal
+                        (kcal)</label>
+                    <input id="inputGoal" name="calorieGoal" type="number" value="500"
+                        class="mt-1 block w-full py-2 px-3 border border-gray-300 bg-white rounded-md shadow-sm focus:outline-none focus:ring-indigo-500 focus:border-indigo-500 sm:text-sm" />
+                </div>
+
+                <!-- Submit button -->
+                <button type="submit" class="bg-blue-500 hover:bg-blue-700 text-white font-bold py-2 px-4 rounded">
+                    Submit
+                </button>
+            </form>
+        </div>
+    </div>
+
+    <script>
+        const refreshInterval = 200;
+        const maxDataPoints = 10;
+        let recentData = [];
+        let goalCalories = 500;
+
+        let riveInputs = null;
+        const runnerBoy = new rive.Rive({
+            src: "runner_boy.riv",
+            canvas: document.getElementById("rive"),
+            autoplay: true,
+            stateMachines: "bumpy",
+            layout: new rive.Layout({
+                fit: rive.Fit.FitHeight,
+            }),
+            onLoad: (_) => {
+                riveInputs = runnerBoy.stateMachineInputs("bumpy");
+                runnerBoy.resizeDrawingSurfaceToCanvas();
+            }
+        });
+
+        const goalLinePlugin = {
+            id: 'goalLine',
+            afterDraw: (chart, args, options) => {
+                const ctx = chart.ctx;
+                const yValue = chart.scales.y.getPixelForValue(options.value);
+
+                ctx.save();
+                ctx.strokeStyle = options.lineColor;
+                ctx.lineWidth = options.lineWidth;
+                ctx.beginPath();
+                ctx.moveTo(0, yValue);
+                ctx.lineTo(chart.width, yValue);
+                ctx.stroke();
+                ctx.restore();
+            }
+        };
+
+        // Register the plugin
+        Chart.register(goalLinePlugin);
+
+        let accelerationData = {
+            labels: [],
+            datasets: [{
+                label: 'X',
+                data: [],
+                borderColor: 'rgba(255, 99, 132, 1)',
+                borderWidth: 1,
+                fill: false
+            }, {
+                label: 'Y',
+                data: [],
+                borderColor: 'rgba(75, 192, 192, 1)',
+                borderWidth: 1,
+                fill: false
+            }, {
+                label: 'Z',
+                data: [],
+                borderColor: 'rgba(153, 102, 255, 1)',
+                borderWidth: 1,
+                fill: false
+            }]
+        };
+
+        let gyroData = {
+            labels: [],
+            datasets: [{
+                label: 'X',
+                data: [],
+                borderColor: 'rgba(255, 159, 64, 1)',
+                borderWidth: 1,
+                fill: false
+            }, {
+                label: 'Y',
+                data: [],
+                borderColor: 'rgba(54, 162, 235, 1)',
+                borderWidth: 1,
+                fill: false
+            }, {
+                label: 'Z',
+                data: [],
+                borderColor: 'rgba(255, 206, 86, 1)',
+                borderWidth: 1,
+                fill: false
+            }]
+        };
+
+        let calorieData = {
+            labels: [],
+            datasets: [{
+                label: 'kcal',
+                data: [],
+                borderColor: 'rgba(255, 159, 64, 1)',
+                borderWidth: 1,
+                fill: false
+            }]
+        };
+
+        let accelerationChart = new Chart(document.getElementById('accelerationChart'), {
+            type: 'line',
+            data: accelerationData,
+            options: {
+                responsive: true,
+                maintainAspectRatio: false,
+                plugins: {
+                    title: {
+                        display: true,
+                        align: 'start',
+                        text: 'Acceleration 🚀'
+                    }
+                },
+                scales: {
+                    x: {
+                        type: 'realtime',
+                        realtime: {
+                            refresh: refreshInterval,
+                            delay: refreshInterval,
+                            onRefresh: function (chart) {
+                                if (recentData.length < 1) {
+                                    return
+                                }
+                                chart.data.datasets[0].data.push({
+                                    x: recentData[recentData.length - 1].time,
+                                    y: recentData[recentData.length - 1].acceleration_x
+                                });
+                                chart.data.datasets[1].data.push({
+                                    x: recentData[recentData.length - 1].time,
+                                    y: recentData[recentData.length - 1].acceleration_y
+                                });
+                                chart.data.datasets[2].data.push({
+                                    x: recentData[recentData.length - 1].time,
+                                    y: recentData[recentData.length - 1].acceleration_z
+                                });
+
+                            }
+                        }
+                    },
+                    y: {
+                        beginAtZero: true,
+                    }
+                }
+            }
+        });
+
+        let gyroChart = new Chart(document.getElementById('gyroChart'), {
+            type: 'line',
+            data: gyroData,
+            options: {
+                responsive: true,
+                maintainAspectRatio: false,
+                plugins: {
+                    title: {
+                        display: true,
+                        align: 'start',
+                        text: 'Gyro 💫'
+                    }
+                },
+                scales: {
+                    x: {
+                        type: 'realtime',
+                        realtime: {
+                            refresh: refreshInterval,
+                            delay: refreshInterval,
+                            onRefresh: function (chart) {
+                                if (recentData.length < 1) {
+                                    return
+                                }
+                                chart.data.datasets[0].data.push({
+                                    x: recentData[recentData.length - 1].time,
+                                    y: recentData[recentData.length - 1].gyro_x
+                                });
+                                chart.data.datasets[1].data.push({
+                                    x: recentData[recentData.length - 1].time,
+                                    y: recentData[recentData.length - 1].gyro_y
+                                });
+                                chart.data.datasets[2].data.push({
+                                    x: recentData[recentData.length - 1].time,
+                                    y: recentData[recentData.length - 1].gyro_z
+                                });
+                            }
+                        }
+                    },
+                    y: {
+                        beginAtZero: true,
+                    }
+                }
+            }
+        });
+
+        let caloriesChart = new Chart(document.getElementById('caloriesChart'), {
+            type: 'line',
+            data: calorieData,
+            options: {
+                responsive: true,
+                maintainAspectRatio: false,
+                plugins: {
+                    title: {
+                        display: true,
+                        align: 'start',
+                        text: 'Calorie Burn 🔥'
+                    },
+                    goalLine: {
+                        value: goalCalories,
+                        lineColor: 'rgba(0, 255, 0, 1)', // Set the color of the line
+                        lineWidth: 2 // Set the width of the line
+                    },
+                },
+                scales: {
+                    x: {
+                        type: 'realtime',
+                        realtime: {
+                            refresh: refreshInterval,
+                            delay: refreshInterval,
+                            onRefresh: function (chart) {
+                                if (recentData.length < 1) {
+                                    return
+                                }
+                                chart.data.datasets[0].data.push({
+                                    x: recentData[recentData.length - 1].time,
+                                    y: recentData[recentData.length - 1].calorie_burn
+                                });
+                            }
+                        }
+                    },
+                    y: {
+                        beginAtZero: true,
+                        suggestedMax: goalCalories + 20
+                    }
+                }
+            }
+        });
+
+        function fetchAndUpdate() {
+            fetch('/api/data').then(response => response.json()).then(data => {
+                // Add data to recentData array and keep it to 10 elements
+                const newData = { ...data, time: Date.now() };
+                recentData.push(newData);
+                if (recentData.length > maxDataPoints) {
+                    recentData.shift();
+                }
+
+                // Update the rive animation
+                if (riveInputs) {
+                    riveInputs.find(i => i.name === data.motion_state).fire();
+                }
+                document.getElementById('movementState').textContent = data.motion_state.replace('_', '');
+                document.getElementById('stepCount').textContent = `Step Count: ${data.step_count}`;
+                document.getElementById('calorieBurn').textContent = `Calorie Burn: ${data.calorie_burn} kcal`;
+
+
+                // Update the recent data div
+                let recentAccelerationDataDiv = document.getElementById('recentAccelerationData');
+                let recentGyroDataDiv = document.getElementById('recentGyroData');
+                let template = document.getElementById('dataTemplate');
+                // Create a new div for the recent data using the template
+                let newAccelerationDataDiv = template.content.cloneNode(true);
+                let newGyroDataDiv = template.content.cloneNode(true);
+
+                // Set the text content of the new div
+                newAccelerationDataDiv.querySelector('.dataX').textContent = `X: ${data.acceleration_x}`;
+                newAccelerationDataDiv.querySelector('.dataY').textContent = `Y: ${data.acceleration_y}`;
+                newAccelerationDataDiv.querySelector('.dataZ').textContent = `Z: ${data.acceleration_z}`;
+
+                newGyroDataDiv.querySelector('.dataX').textContent = `X: ${data.gyro_x}`;
+                newGyroDataDiv.querySelector('.dataY').textContent = `Y: ${data.gyro_y}`;
+                newGyroDataDiv.querySelector('.dataZ').textContent = `Z: ${data.gyro_z}`;
+
+                // Append the new div at the beginning of the recent data div
+                recentAccelerationDataDiv.insertBefore(newAccelerationDataDiv, recentAccelerationDataDiv.firstChild);
+                recentGyroDataDiv.insertBefore(newGyroDataDiv, recentGyroDataDiv.firstChild);
+
+                // If there are more than 10 divs (data points), remove the oldest one
+                while (recentAccelerationDataDiv.children.length > 10) {
+                    recentAccelerationDataDiv.removeChild(recentAccelerationDataDiv.lastChild);
+                    recentGyroDataDiv.removeChild(recentGyroDataDiv.lastChild);
+                }
+            });
+        }
+
+        setInterval(fetchAndUpdate, refreshInterval);  // Fetch and update every [refreshInterval] ms
+
+        function fetchUserData() {
+            fetch('/api/user').then(response => response.json()).then(data => {
+
+                console.log(data);
+                goalCalories = data.calorie_goal;
+                // Set the user data boxes
+                document.getElementById('weight').textContent = `${data.weight} kg`;
+                document.getElementById('height').textContent = `${data.height} cm`;
+                document.getElementById('age').textContent = `${data.age} years`;
+                document.getElementById('gender').textContent = data.gender;
+                document.getElementById('goal').textContent = `${goalCalories} kcal`;
+
+                // Set the user data in the settings modal
+                document.getElementById('inputWeight').value = data.weight;
+                document.getElementById('inputHeight').value = data.height;
+                document.getElementById('inputAge').value = data.age;
+                document.getElementById('inputGender').value = data.gender;
+                document.getElementById('inputGoal').value = data.calorie_goal;
+
+                // Update the value of the goalLine plugin
+                caloriesChart.options.plugins.goalLine.value = goalCalories;
+                // Adjust the y scale max value
+                caloriesChart.options.scales.y.suggestedMax = goalCalories + 20;
+                caloriesChart.update();
+            });
+        }
+
+        function postUserData(dataJson) {
+            fetch('/api/user', {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json',
+                },
+                body: dataJson,
+            }).then(response => {
+                if (!response.ok) {
+                    throw new Error(`HTTP error! status: ${response.status}`);
+                }
+                return response.json();
+            }).then(json => {
+                console.log(json);
+            }).catch(e => {
+                console.error('There was an error with the fetch request', e);
+            });
+        }
+
+        fetchUserData();
+
+        document.getElementById('settingsButton').addEventListener('click', function () {
+            document.getElementById('settingsModal').classList.remove('hidden');
+        });
+
+        document.getElementById('closeModal').addEventListener('click', function () {
+            document.getElementById('settingsModal').classList.add('hidden');
+        });
+
+        document.getElementById('settingsForm').addEventListener('submit', function (event) {
+            event.preventDefault();
+
+            const weight = document.getElementById('inputWeight').value;
+            const height = document.getElementById('inputHeight').value;
+            const age = document.getElementById('inputAge').value;
+            const gender = document.getElementById('inputGender').value;
+            const calorieGoal = document.getElementById('inputGoal').value;
+
+            if (!weight || !height || !age || !gender || !calorieGoal) {
+                alert('Please fill in all the fields');
+                return;
+            }
+            // Get the rest of the input fields in the same way
+
+            // Prepare the data as JSON
+            const data = { weight, height, age, gender, calorieGoal };
+            const dataJson = JSON.stringify(data);
+
+            // Send the data as a POST request
+            postUserData(dataJson);
+            fetchUserData();
+
+            // Close the modal
+            document.getElementById('settingsModal').classList.add('hidden');
+        });
+    </script>
+</body>
+
+</html>
