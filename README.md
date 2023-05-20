@@ -17,6 +17,8 @@ Libraries used
 2.  Adafruit Unified Sensor v1.1.4
 3.  ArduinoJson v6.21.2
 
+![Alt text](https://github.com/vucinatim/esp-pedometer/blob/8f3f74629b24570afe5bdcb84c8dcce368680e52/Schematic.png)
+
 Setup
 -----
 
