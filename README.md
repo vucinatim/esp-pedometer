@@ -1,4 +1,3 @@
-# esp-pedometer
 ESP8266 Pedometer
 =================
 
