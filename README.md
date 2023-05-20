@@ -56,9 +56,10 @@ Data Structure
 
 The data from the `/api/data` endpoint is returned in the following format:
 
-jsonCopy code
 
-`{
+
+```json
+{
     "acceleration_x": <value>,
     "acceleration_y": <value>,
     "acceleration_z": <value>,
@@ -70,18 +71,21 @@ jsonCopy code
     "step_count": <value>,
     "timestamp": <value>
 }
+```
 
 The user data from the `/api/user` endpoint is returned in the following format:
 
-jsonCopy code
 
-`{
+
+```json
+{
     "weight": <value>,
     "height": <value>,
     "age": <value>,
     "gender": "<value>",
     "calorie_goal": <value>
-}`
+}
+```
 
 Troubleshooting
 ---------------
