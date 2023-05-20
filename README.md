@@ -60,16 +60,16 @@ The data from the `/api/data` endpoint is returned in the following format:
 
 ```json
 {
-    "acceleration_x": <value>,
-    "acceleration_y": <value>,
-    "acceleration_z": <value>,
-    "gyro_x": <value>,
-    "gyro_y": <value>,
-    "gyro_z": <value>,
-    "motion_state": "<value>",
-    "calorie_burn": <value>,
-    "step_count": <value>,
-    "timestamp": <value>
+    "acceleration_x": <float>,
+    "acceleration_y": <float>,
+    "acceleration_z": <float>,
+    "gyro_x": <float>,
+    "gyro_y": <float>,
+    "gyro_z": <float>,
+    "motion_state": "<string>",
+    "calorie_burn": <float>,
+    "step_count": <int>,
+    "timestamp": <unsigned_long>
 }
 ```
 
@@ -79,11 +79,11 @@ The user data from the `/api/user` endpoint is returned in the following format:
 
 ```json
 {
-    "weight": <value>,
-    "height": <value>,
-    "age": <value>,
-    "gender": "<value>",
-    "calorie_goal": <value>
+    "weight": <float>,
+    "height": <float>,
+    "age": <int>,
+    "gender": "<string>",
+    "calorie_goal": <float>
 }
 ```
 
